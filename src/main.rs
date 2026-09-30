@@ -1,6 +1,3 @@
-#![no_std]
-#![no_main]
-
 extern crate alloc;
 
 use embedded_alloc::Heap;
@@ -23,9 +20,8 @@ use asset_parser::AssetParser;
 use codegen::CodeGenerator;
 use sql_bridge::SqlBridge;
 
-// Menggunakan C main entry point standard bagi mengelakkan pertembungan symbol _start
-#[no_mangle]
-pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
+fn main() {
+    // Inisialisasi pengagih memori tempatan
     if !ALLOC_INITIALIZED.swap(true, Ordering::SeqCst) {
         const HEAP_SIZE: usize = 64 * 1024;
         static mut HEAP_MEM: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
@@ -33,6 +29,7 @@ pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
         unsafe { ALLOCATOR.init(HEAP_MEM.as_mut_ptr() as usize, HEAP_SIZE) };
     }
 
+    // Direct domain query & SQL Bridge test
     let mut bridge = SqlBridge::new("sqlite://volt_local.db");
     if bridge.connect() {
         let _res = bridge.execute_raw_query("SELECT ip FROM volt_domains WHERE domain='shadow-rpg.volt'");
@@ -48,11 +45,4 @@ pub extern "C" fn main(_argc: i32, _argv: *const *const u8) -> i32 {
     let mesh_data = AssetParser::parse_glb_vertices(fake_glb).ok();
     
     let _bytecode = CodeGenerator::generate_binary("shadow-rpg.volt", mesh_data.as_ref());
-
-    0
-}
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
 }
