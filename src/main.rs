@@ -1,3 +1,5 @@
+extern crate alloc;
+
 mod cli;
 mod registry;
 mod asset_parser;
@@ -8,6 +10,7 @@ use cli::{VCli, VCommand};
 use registry::VoltSqlRegistry;
 use asset_parser::AssetParser;
 use codegen::CodeGenerator;
+mod_sql_bridge:
 use sql_bridge::SqlBridge;
 
 fn main() {
