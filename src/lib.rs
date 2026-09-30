@@ -1,108 +1,35 @@
 #![no_std]
+
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::vec::Vec;
+pub mod cli;
+pub mod registry;
+pub mod asset_parser;
+pub mod codegen;
+pub mod sql_bridge;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    KeywordWebPage,
-    KeywordUIEngine,
-    KeywordText,
-    KeywordButton,
-    Identifier(String),
-    StringLiteral(String),
-    NumberLiteral(f32),
-    OpenBrace,
-    CloseBrace,
-    Colon,
-    Comma,
-}
+use alloc::string::ToString;
+use cli::{VCli, VCommand};
+use registry::VoltSqlRegistry;
+use asset_parser::AssetParser;
+use codegen::CodeGenerator;
+use sql_bridge::SqlBridge;
 
-#[derive(Debug, Clone)]
-pub enum VoltNode {
-    WebPage {
-        name: String,
-        domain: String,
-        children: Vec<VoltNode>,
-    },
-    UIComponent {
-        kind: String,
-        name: String,
-        properties: Vec<(String, String)>,
-    },
-}
-
-pub struct VoltLexer<'a> {
-    input: &'a str,
-}
-
-impl<'a> VoltLexer<'a> {
-    pub fn new(input: &'a str) -> Self {
-        Self { input }
+/// Fungsi teras Volt yang bebas OS (100% Bare-Metal Compatible)
+pub fn run_volt_engine() {
+    let mut bridge = SqlBridge::new("sqlite://volt_local.db");
+    if bridge.connect() {
+        let _res = bridge.execute_raw_query("SELECT ip FROM volt_domains WHERE domain='shadow-rpg.volt'");
     }
 
-    pub fn tokenize(&self) -> Vec<Token> {
-        let mut tokens = Vec::new();
-        let mut chars = self.input.chars().peekable();
+    let mut sql_db = VoltSqlRegistry::new();
+    sql_db.register_crate("shadow_core", "1.0.0", "hash_abc123");
 
-        while let Some(&c) = chars.peek() {
-            match c {
-                ' ' | '\t' | '\r' | '\n' => {
-                    chars.next();
-                }
-                '{' => {
-                    tokens.push(Token::OpenBrace);
-                    chars.next();
-                }
-                '}' => {
-                    tokens.push(Token::CloseBrace);
-                    chars.next();
-                }
-                ':' => {
-                    tokens.push(Token::Colon);
-                    chars.next();
-                }
-                ',' => {
-                    tokens.push(Token::Comma);
-                    chars.next();
-                }
-                '"' => {
-                    chars.next();
-                    let mut str_val = String::new();
-                    while let Some(&sc) = chars.peek() {
-                        if sc == '"' {
-                            chars.next();
-                            break;
-                        }
-                        str_val.push(sc);
-                        chars.next();
-                    }
-                    tokens.push(Token::StringLiteral(str_val));
-                }
-                a if a.is_alphabetic() || a == '_' => {
-                    let mut ident = String::new();
-                    while let Some(&ic) = chars.peek() {
-                        if ic.is_alphanumeric() || ic == '_' {
-                            ident.push(ic);
-                            chars.next();
-                        } else {
-                            break;
-                        }
-                    }
-                    match ident.as_str() {
-                        "WebPage" => tokens.push(Token::KeywordWebPage),
-                        "UIEngine" => tokens.push(Token::KeywordUIEngine),
-                        "Text" => tokens.push(Token::KeywordText),
-                        "Button" => tokens.push(Token::KeywordButton),
-                        _ => tokens.push(Token::Identifier(ident)),
-                    }
-                }
-                _ => {
-                    chars.next();
-                }
-            }
-        }
-        tokens
-    }
+    let cmd = VCommand::Build { target: "main.volt".to_string() };
+    let _cli_out = VCli::execute(cmd);
+
+    let fake_glb = b"glTF\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3f\x00\x00\x00\x40\x00\x00\x40\x40";
+    let mesh_data = AssetParser::parse_glb_vertices(fake_glb).ok();
+    
+    let _bytecode = CodeGenerator::generate_binary("shadow-rpg.volt", mesh_data.as_ref());
 }
